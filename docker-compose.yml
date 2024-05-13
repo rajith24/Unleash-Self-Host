@@ -1,0 +1,55 @@
+version: "3"
+services:
+  web:
+    image: unleashorg/unleash-server:latest
+    ports:
+      - "4242:4242"
+    environment:
+      DATABASE_URL: "postgres://postgres:30f7f3a3-7c3a-40c4-85ac-2ca10ac47f0b@db/db"
+      DATABASE_SSL: "false"
+      LOG_LEVEL: "warn"
+      INIT_FRONTEND_API_TOKENS: "default:development.unleash-insecure-frontend-api-token"
+      INIT_CLIENT_API_TOKENS: "default:development.unleash-insecure-api-token"
+    depends_on:
+      - db
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=core_net"
+      - "traefik.http.routers.mfe-unleash.rule=Host(`mfe-unleash.your-server.com`)"
+      - "traefik.http.routers.mfe-unleash.entrypoints=https"
+      - "traefik.http.routers.mfe-unleash.tls.certresolver=myresolver"
+      - "traefik.http.services.mfe-unleash.loadbalancer.server.port=4242"
+
+    networks:
+      - core_net
+      - db_net
+
+    command: ["node", "index.js"]
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:4242/health || exit 1
+      interval: 1s
+      timeout: 1m
+      retries: 5
+
+  db:
+    expose:
+      - "5432"
+    image: postgres:15
+    environment:
+      POSTGRES_DB: "db"
+      POSTGRES_USER: "postgres"  # Replace with your desired username
+      POSTGRES_PASSWORD: "30f7f3a3-7c3a-40c4-85ac-2ca10ac47f0b"  # Replace with your desired password
+      # POSTGRES_HOST_AUTH_METHOD: "trust" # Disable for production
+    healthcheck:
+      test: ["CMD", "pg_isready", "--username=postgres", "--host=db", "--port=5432"]
+      interval: 2s
+      timeout: 1m
+      retries: 5
+    networks:
+      - db_net
+
+networks:
+  core_net:
+    external: true
+  db_net:
+    external: true
